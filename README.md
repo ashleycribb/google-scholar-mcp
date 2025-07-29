@@ -44,25 +44,22 @@ git clone <repository-url>
 cd google-scholar-mcp
 ```
 
-2. Install dependencies:
+2. Install and build:
 ```bash
 cd server
 npm install
+npm run build
 
 cd client
 npm install
+npm run build
 ```
 
 ## Running the Server
 
-1. Build the project:
+1. Start the MCP server:
 ```bash
 cd server
-npm run build
-```
-
-2. Start the MCP server:
-```bash
 node build/index.js
 ```
 
