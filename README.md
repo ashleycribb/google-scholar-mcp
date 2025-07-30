@@ -36,6 +36,10 @@ The server uses **StreamableHTTPServerTransport** which supports:
 - **Session Management**: Persistent connections with unique session IDs
 - **Real-time Notifications**: Streaming updates via SSE
 
+## Smithery
+
+The server is now available in Smithery: [Google Scholar Search Server](https://smithery.ai/server/@mochow13/google-scholar-mcp)
+
 ## Installation
 
 1. Clone the repository:
