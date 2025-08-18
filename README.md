@@ -1,5 +1,7 @@
 # Google Scholar MCP Server
 
+[![smithery badge](https://smithery.ai/badge/@mochow13/google-scholar-mcp)](https://smithery.ai/server/@mochow13/google-scholar-mcp)
+
 A Model Context Protocol (MCP) server that provides Google Scholar search capabilities through a streamable HTTP transport. This project demonstrates how to build an MCP server with custom tools and integrate it with AI models like Google's Gemini.
 
 ## Overview
@@ -41,6 +43,14 @@ The server uses **StreamableHTTPServerTransport** which supports:
 The server is now available in Smithery: [Google Scholar Search Server](https://smithery.ai/server/@mochow13/google-scholar-mcp)
 
 ## Installation
+
+### Installing via Smithery
+
+To install google-scholar-mcp for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@mochow13/google-scholar-mcp):
+
+```bash
+npx -y @smithery/cli install @mochow13/google-scholar-mcp --client claude
+```
 
 1. Clone the repository:
 ```bash
