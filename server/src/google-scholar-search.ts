@@ -41,10 +41,11 @@ export async function searchGoogleScholar(
         let url = `https://scholar.google.com/scholar?q=${encodedQuery}&num=${numResults}`;
         
         // Add year range parameters if provided
-        if (startYear !== null || endYear !== null) {
-            const yearStart = startYear || '';
-            const yearEnd = endYear || '';
-            url += `&as_ylo=${yearStart}&as_yhi=${yearEnd}`;
+        if (startYear) {
+            url += `&as_ylo=${startYear}`;
+        }
+        if (endYear) {
+            url += `&as_yhi=${endYear}`;
         }
         
         // Set headers to mimic a real browser request
@@ -56,7 +57,7 @@ export async function searchGoogleScholar(
             'Connection': 'keep-alive',
         };
 
-        const response = await axios.default.get(url, { headers });
+        const response = await axios.get(url, { headers });
         const $ = cheerio.load(response.data);
         
         const results: ScholarResult[] = [];
