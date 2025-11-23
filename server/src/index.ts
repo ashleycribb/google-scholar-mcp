@@ -2,7 +2,7 @@ import express, { Request, Response } from "express";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { MCPServer } from "./server.js";
 
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 const server = new MCPServer(
     new Server(
