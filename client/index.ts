@@ -68,16 +68,10 @@ class MCPClient {
         }
         this.transport.onclose = async () => {
             console.log("SSE transport closed.");
-            if (this.transport) {
-                await this.transport.close();
-            }
         };
 
         this.transport.onerror = async (error) => {
             console.log("SSE transport error: ", error);
-            if (this.transport) {
-                await this.transport.close();
-            }
         };
     }
 
