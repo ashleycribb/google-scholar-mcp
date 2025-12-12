@@ -10,6 +10,7 @@ COPY server/package.json server/package-lock.json ./server/
 RUN cd server && npm install
 COPY server/ ./server/
 RUN cd server && npm run build
+RUN cd server && npm prune --production
 
 # Stage 2: Create the production image
 FROM node:lts-alpine
