@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Google Scholar MCP",
+  "version": "1.0",
+  "description": "Search Google Scholar using a MCP server.",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ]
+}
