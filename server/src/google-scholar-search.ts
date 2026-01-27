@@ -1,5 +1,12 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { LRUCache } from 'lru-cache';
+
+// Initialize LRU Cache
+const cache = new LRUCache<string, ScholarResult[]>({
+    max: 100, // Maximum number of items
+    ttl: 1000 * 60 * 60, // 1 hour TTL
+});
 
 interface ScholarResult {
     Title: string;
@@ -28,6 +35,12 @@ export async function searchGoogleScholar(
 ): Promise<ScholarResult[]> {
     try {
         const { author = null, startYear = null, endYear = null } = options;
+
+        // Check cache
+        const cacheKey = `${query}|${numResults}|${author ?? ''}|${startYear ?? ''}|${endYear ?? ''}`;
+        if (cache.has(cacheKey)) {
+            return cache.get(cacheKey)!;
+        }
         
         // Build the search query with additional parameters
         let searchQuery = query;
@@ -93,9 +106,8 @@ export async function searchGoogleScholar(
             }
         });
 
-        results.forEach(result => {
-            console.log(result);
-        });
+        // Cache the results
+        cache.set(cacheKey, results);
 
         return results;
         
