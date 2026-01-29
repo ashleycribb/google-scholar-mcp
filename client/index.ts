@@ -2,28 +2,34 @@ import { GoogleGenAI, Type, Schema, FunctionDeclaration } from "@google/genai";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import readline from "readline/promises";
+import { fileURLToPath } from 'url';
 
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not set");
-}
 
-class MCPClient {
+export class MCPClient {
     private mcp: Client;
     private transport: StreamableHTTPClientTransport | null = null;
     private genAI: GoogleGenAI;
     private tools: FunctionDeclaration[] = [];
     private conversationHistory: any[] = []; // Store the entire conversation
+    private readonly MAX_HISTORY_LENGTH = 20;
 
-    constructor() {
-        this.genAI = new GoogleGenAI({
-            apiKey: GEMINI_API_KEY,
-        });
-        this.mcp = new Client({ name: "mcp-client", version: "1.0.0" });
+    constructor(genAI?: GoogleGenAI, mcp?: Client) {
+        if (genAI) {
+            this.genAI = genAI;
+        } else {
+            if (!GEMINI_API_KEY) {
+                throw new Error("GEMINI_API_KEY is not set");
+            }
+            this.genAI = new GoogleGenAI({
+                apiKey: GEMINI_API_KEY,
+            });
+        }
+        this.mcp = mcp || new Client({ name: "mcp-client", version: "1.0.0" });
     }
 
     async connectToServer(serverUrl: string) {
@@ -83,6 +89,19 @@ class MCPClient {
                 text: query,
             }],
         });
+
+        // Enforce sliding window on conversation history
+        if (this.conversationHistory.length > this.MAX_HISTORY_LENGTH) {
+            this.conversationHistory = this.conversationHistory.slice(-this.MAX_HISTORY_LENGTH);
+
+            // Ensure the history starts with a user text message (not a function response or model message)
+            while (
+                this.conversationHistory.length > 0 &&
+                (this.conversationHistory[0].role !== "user" || !this.conversationHistory[0].parts?.[0]?.text)
+            ) {
+                this.conversationHistory.shift();
+            }
+        }
 
         const config = {
             tools: [{
@@ -226,4 +245,6 @@ async function main() {
     }
 }
 
-main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    main();
+}
