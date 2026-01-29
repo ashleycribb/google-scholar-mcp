@@ -121,10 +121,10 @@ class MCPClient {
         }
 
         // Process each function call
-        for (const toolCall of response.functionCalls) {
+        const toolPromises = response.functionCalls.map(async (toolCall) => {
             if (!toolCall.name) {
                 console.error("Tool call without a name:", toolCall);
-                continue;
+                return null;
             }
 
             console.log(`Calling function: ${toolCall.name}`);
@@ -134,6 +134,16 @@ class MCPClient {
                 name: toolCall.name,
                 arguments: toolCall.args,
             });
+
+            return { toolCall, toolResult };
+        });
+
+        const results = await Promise.all(toolPromises);
+
+        for (const result of results) {
+            if (!result) continue;
+
+            const { toolCall, toolResult } = result;
 
             toolCallResults.push(`[Called tool ${toolCall.name} with args ${JSON.stringify(toolCall.args)}]`);
 
