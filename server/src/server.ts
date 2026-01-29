@@ -78,6 +78,13 @@ export class MCPServer {
                 const sessionId = transport.sessionId;
                 if (sessionId) {
                     this.transports[sessionId] = transport;
+                    const originalOnClose = transport.onclose;
+                    transport.onclose = () => {
+                        delete this.transports[sessionId];
+                        if (originalOnClose) {
+                            originalOnClose();
+                        }
+                    };
                 }
                 return;
             }
