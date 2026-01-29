@@ -93,10 +93,6 @@ export async function searchGoogleScholar(
             }
         });
 
-        results.forEach(result => {
-            console.log(result);
-        });
-
         return results;
         
     } catch (error) {
