@@ -2,28 +2,33 @@ import { GoogleGenAI, Type, Schema, FunctionDeclaration } from "@google/genai";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import readline from "readline/promises";
+import { fileURLToPath } from 'url';
 
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not set");
-}
-
-class MCPClient {
+export class MCPClient {
     private mcp: Client;
     private transport: StreamableHTTPClientTransport | null = null;
     private genAI: GoogleGenAI;
     private tools: FunctionDeclaration[] = [];
     private conversationHistory: any[] = []; // Store the entire conversation
 
-    constructor() {
-        this.genAI = new GoogleGenAI({
-            apiKey: GEMINI_API_KEY,
-        });
-        this.mcp = new Client({ name: "mcp-client", version: "1.0.0" });
+    constructor(genAI?: GoogleGenAI, mcp?: Client) {
+        if (genAI) {
+            this.genAI = genAI;
+        } else {
+            const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+            if (!GEMINI_API_KEY) {
+                throw new Error("GEMINI_API_KEY is not set");
+            }
+            this.genAI = new GoogleGenAI({
+                apiKey: GEMINI_API_KEY,
+            });
+        }
+
+        this.mcp = mcp || new Client({ name: "mcp-client", version: "1.0.0" });
     }
 
     async connectToServer(serverUrl: string) {
@@ -121,20 +126,30 @@ class MCPClient {
         }
 
         // Process each function call
-        for (const toolCall of response.functionCalls) {
+        const validToolCalls = response.functionCalls.filter(toolCall => {
             if (!toolCall.name) {
                 console.error("Tool call without a name:", toolCall);
-                continue;
+                return false;
             }
+            return true;
+        });
 
+        // Execute tool calls in parallel
+        const toolPromises = validToolCalls.map(async (toolCall) => {
             console.log(`Calling function: ${toolCall.name}`);
             console.log('Parameters:', JSON.stringify(toolCall.args, null, 2));
 
             const toolResult = await this.mcp.callTool({
-                name: toolCall.name,
+                name: toolCall.name!,
                 arguments: toolCall.args,
             });
 
+            return { toolCall, toolResult };
+        });
+
+        const results = await Promise.all(toolPromises);
+
+        for (const { toolCall, toolResult } of results) {
             toolCallResults.push(`[Called tool ${toolCall.name} with args ${JSON.stringify(toolCall.args)}]`);
 
             const functionResponsePart = {
@@ -226,4 +241,6 @@ async function main() {
     }
 }
 
-main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    main();
+}
