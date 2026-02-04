@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { LRUCache } from 'lru-cache';
 
 interface ScholarResult {
     Title: string;
@@ -13,6 +14,11 @@ interface SearchOptions {
     startYear?: number | null;
     endYear?: number | null;
 }
+
+const cache = new LRUCache<string, ScholarResult[]>({
+    max: 100,
+    ttl: 1000 * 60 * 60, // 1 hour
+});
 
 /**
  * Searches Google Scholar for academic papers and returns parsed results
@@ -28,6 +34,11 @@ export async function searchGoogleScholar(
 ): Promise<ScholarResult[]> {
     try {
         const { author = null, startYear = null, endYear = null } = options;
+
+        const cacheKey = JSON.stringify({ query, numResults, author, startYear, endYear });
+        if (cache.has(cacheKey)) {
+            return cache.get(cacheKey)!;
+        }
         
         // Build the search query with additional parameters
         let searchQuery = query;
@@ -92,6 +103,8 @@ export async function searchGoogleScholar(
                 });
             }
         });
+
+        cache.set(cacheKey, results);
 
         return results;
         
