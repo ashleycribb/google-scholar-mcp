@@ -71,6 +71,18 @@ export class MCPServer {
                 });
 
                 await this.server.connect(transport);
+
+                const originalOnClose = transport.onclose;
+                transport.onclose = () => {
+                    if (originalOnClose) {
+                        originalOnClose();
+                    }
+                    const sessionId = transport.sessionId;
+                    if (sessionId && this.transports[sessionId]) {
+                        delete this.transports[sessionId];
+                        console.log(`Closed session ${sessionId}`);
+                    }
+                };
                 await transport.handleRequest(req, res, req.body);
 
                 // session ID will only be available (if in not Stateless-Mode)
