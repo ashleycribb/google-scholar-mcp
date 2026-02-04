@@ -2,6 +2,12 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { LRUCache } from 'lru-cache';
 
+// Initialize LRU Cache
+const cache = new LRUCache<string, ScholarResult[]>({
+    max: 100, // Maximum number of items
+    ttl: 1000 * 60 * 60, // 1 hour TTL
+});
+
 interface ScholarResult {
     Title: string;
     Authors: string;
@@ -35,7 +41,8 @@ export async function searchGoogleScholar(
     try {
         const { author = null, startYear = null, endYear = null } = options;
 
-        const cacheKey = JSON.stringify({ query, numResults, author, startYear, endYear });
+        // Check cache
+        const cacheKey = `${query}|${numResults}|${author ?? ''}|${startYear ?? ''}|${endYear ?? ''}`;
         if (cache.has(cacheKey)) {
             return cache.get(cacheKey)!;
         }
@@ -104,6 +111,7 @@ export async function searchGoogleScholar(
             }
         });
 
+        // Cache the results
         cache.set(cacheKey, results);
 
         return results;
