@@ -137,12 +137,13 @@ function validateSearchGoogleScholarArgs(args: SearchGoogleScholarArgs): void {
     }
 
     // Validate year parameters
-    if (startYear && (typeof startYear !== 'number' || startYear < 1900 || startYear > new Date().getFullYear())) {
-        throw new Error(`startYear must be a number between 1900 and ${new Date().getFullYear()}`);
+    const currentYear = new Date().getFullYear();
+    if (startYear && (typeof startYear !== 'number' || startYear < 1900 || startYear > currentYear)) {
+        throw new Error(`startYear must be a number between 1900 and ${currentYear}`);
     }
 
-    if (endYear && (typeof endYear !== 'number' || endYear < 1900 || endYear > new Date().getFullYear())) {
-        throw new Error(`endYear must be a number between 1900 and ${new Date().getFullYear()}`);
+    if (endYear && (typeof endYear !== 'number' || endYear < 1900 || endYear > currentYear)) {
+        throw new Error(`endYear must be a number between 1900 and ${currentYear}`);
     }
 
     // Validate year range if both are provided
