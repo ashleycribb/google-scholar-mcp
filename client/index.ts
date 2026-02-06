@@ -134,7 +134,7 @@ export class MCPClient {
             return true;
         });
 
-        // Execute tool calls in parallel
+        // Execute tool calls in parallel to reduce latency
         const toolPromises = validToolCalls.map(async (toolCall) => {
             console.log(`Calling function: ${toolCall.name}`);
             console.log('Parameters:', JSON.stringify(toolCall.args, null, 2));
