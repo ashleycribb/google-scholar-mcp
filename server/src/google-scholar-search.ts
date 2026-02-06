@@ -21,11 +21,6 @@ interface SearchOptions {
     endYear?: number | null;
 }
 
-const cache = new LRUCache<string, ScholarResult[]>({
-    max: 100,
-    ttl: 1000 * 60 * 60, // 1 hour
-});
-
 /**
  * Searches Google Scholar for academic papers and returns parsed results
  * @param query - The search query string
@@ -46,7 +41,7 @@ export async function searchGoogleScholar(
         if (cache.has(cacheKey)) {
             return cache.get(cacheKey)!;
         }
-        
+
         // Build the search query with additional parameters
         let searchQuery = query;
         
