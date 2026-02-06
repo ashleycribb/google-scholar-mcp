@@ -21,11 +21,6 @@ interface SearchOptions {
     endYear?: number | null;
 }
 
-const cache = new LRUCache<string, ScholarResult[]>({
-    max: 100,
-    ttl: 1000 * 60 * 60, // 1 hour
-});
-
 /**
  * Searches Google Scholar for academic papers and returns parsed results
  * @param query - The search query string
@@ -36,7 +31,8 @@ const cache = new LRUCache<string, ScholarResult[]>({
 export async function searchGoogleScholar(
     query: string, 
     numResults: number = 10,
-    options: SearchOptions = {}
+    options: SearchOptions = {},
+    axiosInstance: any = axios.default
 ): Promise<ScholarResult[]> {
     try {
         const { author = null, startYear = null, endYear = null } = options;
@@ -74,7 +70,7 @@ export async function searchGoogleScholar(
             'Connection': 'keep-alive',
         };
 
-        const response = await axios.default.get(url, { headers });
+        const response = await axiosInstance.get(url, { headers });
         const $ = cheerio.load(response.data);
         
         const results: ScholarResult[] = [];
