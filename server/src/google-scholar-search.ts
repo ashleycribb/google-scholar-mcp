@@ -21,10 +21,6 @@ interface SearchOptions {
     endYear?: number | null;
 }
 
-const cache = new LRUCache<string, ScholarResult[]>({
-    max: 100,
-    ttl: 1000 * 60 * 60, // 1 hour
-});
 
 /**
  * Searches Google Scholar for academic papers and returns parsed results
