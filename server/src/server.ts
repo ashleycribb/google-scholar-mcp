@@ -16,17 +16,22 @@ import { callSearchGoogleScholarTool, googleScholarTools } from "./tools.js";
 const SESSION_ID_HEADER_NAME = "mcp-session-id";
 const JSON_RPC = "2.0";
 
+const SESSION_TTL = 1000 * 60 * 60; // 1 hour
+const CLEANUP_INTERVAL = 1000 * 60 * 5; // 5 minutes
+
 export class MCPServer {
     server: Server;
 
     // to support multiple simultaneous connections
     transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
+    sessionActivity: Map<string, number> = new Map();
 
-    private toolInterval: NodeJS.Timeout | undefined;
+    private cleanupInterval: NodeJS.Timeout | undefined;
 
     constructor(server: Server) {
         this.server = server;
         this.setupTools();
+        this.startCleanupInterval();
     }
 
     async handleGetRequest(req: Request, res: Response) {
@@ -44,6 +49,8 @@ export class MCPServer {
             return;
         }
 
+        this.sessionActivity.set(sessionId, Date.now());
+
         console.log(`Establishing SSE stream for session ${sessionId}`);
         const transport = this.transports[sessionId];
         await transport.handleRequest(req, res);
@@ -59,6 +66,7 @@ export class MCPServer {
         try {
             // reuse existing transport
             if (sessionId && this.transports[sessionId]) {
+                this.sessionActivity.set(sessionId, Date.now());
                 transport = this.transports[sessionId];
                 await transport.handleRequest(req, res, req.body);
                 return;
@@ -80,6 +88,7 @@ export class MCPServer {
                     const sessionId = transport.sessionId;
                     if (sessionId && this.transports[sessionId]) {
                         delete this.transports[sessionId];
+                        this.sessionActivity.delete(sessionId);
                         console.log(`Closed session ${sessionId}`);
                     }
                 };
@@ -90,6 +99,7 @@ export class MCPServer {
                 const sessionId = transport.sessionId;
                 if (sessionId) {
                     this.transports[sessionId] = transport;
+                    this.sessionActivity.set(sessionId, Date.now());
                     const originalOnClose = transport.onclose;
                     transport.onclose = () => {
                         try {
@@ -98,6 +108,7 @@ export class MCPServer {
                             }
                         } finally {
                             delete this.transports[sessionId];
+                            this.sessionActivity.delete(sessionId);
                         }
                     };
                 }
@@ -113,8 +124,23 @@ export class MCPServer {
     }
 
     async cleanup() {
-        this.toolInterval?.close();
+        if (this.cleanupInterval) clearInterval(this.cleanupInterval);
         await this.server.close();
+    }
+
+    private startCleanupInterval() {
+        this.cleanupInterval = setInterval(() => {
+            const now = Date.now();
+            for (const [sessionId, lastActive] of this.sessionActivity.entries()) {
+                if (now - lastActive > SESSION_TTL) {
+                    if (this.transports[sessionId]) {
+                        console.log(`Cleaning up inactive session ${sessionId}`);
+                        delete this.transports[sessionId];
+                    }
+                    this.sessionActivity.delete(sessionId);
+                }
+            }
+        }, CLEANUP_INTERVAL);
     }
 
     private setupTools() {
