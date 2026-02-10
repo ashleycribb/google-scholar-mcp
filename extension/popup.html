@@ -1,20 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Google Scholar MCP</title>
+  <title>Google Scholar Researcher</title>
   <link rel="stylesheet" type="text/css" href="popup.css">
+  <meta charset="utf-8">
 </head>
 <body>
-  <h1>Google Scholar Search</h1>
+  <div class="container">
+    <div class="header">
+      <h1>Scholar Search</h1>
+      <div class="tabs">
+        <button id="tab-search" class="tab-btn active">Search</button>
+        <button id="tab-saved" class="tab-btn">Saved Papers</button>
+      </div>
+    </div>
 
-  <div>
-    <input type="text" id="serverUrl" placeholder="Enter MCP Server URL" style="width: 100%; margin-bottom: 5px; box-sizing: border-box;">
+    <!-- Search View -->
+    <div id="view-search" class="view active">
+      <div class="search-box">
+        <input type="text" id="query-input" placeholder="Enter topic, author, or keywords...">
+        <button id="search-btn">Search</button>
+      </div>
+      <div id="loading" class="hidden">Searching...</div>
+      <div id="search-results" class="results-list"></div>
+      <div id="search-error" class="error-msg hidden"></div>
+    </div>
+
+    <!-- Saved View -->
+    <div id="view-saved" class="view hidden">
+      <div class="actions-bar">
+        <button id="copy-all-btn" class="secondary-btn">Copy All to Clipboard</button>
+        <button id="clear-all-btn" class="danger-btn">Clear All</button>
+      </div>
+      <div id="saved-list" class="results-list"></div>
+      <div id="saved-empty" class="empty-msg hidden">No saved papers yet.</div>
+    </div>
   </div>
-
-  <input type="text" id="query" placeholder="Enter your search query">
-  <button id="search">Search</button>
-
-  <div id="results"></div>
 
   <script src="popup.js"></script>
 </body>
