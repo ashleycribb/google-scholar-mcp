@@ -125,6 +125,8 @@ export async function callSearchGoogleScholarTool(args: any): Promise<{
  */
 function validateSearchGoogleScholarArgs(args: SearchGoogleScholarArgs): void {
     const { query, numResults, startYear, endYear } = args;
+    // Only instantiate Date if we actually need to check years
+    const currentYear = (startYear || endYear) ? new Date().getFullYear() : 0;
 
     // Validate required parameters
     if (!query || typeof query !== 'string') {
@@ -137,12 +139,12 @@ function validateSearchGoogleScholarArgs(args: SearchGoogleScholarArgs): void {
     }
 
     // Validate year parameters
-    if (startYear && (typeof startYear !== 'number' || startYear < 1900 || startYear > new Date().getFullYear())) {
-        throw new Error(`startYear must be a number between 1900 and ${new Date().getFullYear()}`);
+    if (startYear && (typeof startYear !== 'number' || startYear < 1900 || startYear > currentYear)) {
+        throw new Error(`startYear must be a number between 1900 and ${currentYear}`);
     }
 
-    if (endYear && (typeof endYear !== 'number' || endYear < 1900 || endYear > new Date().getFullYear())) {
-        throw new Error(`endYear must be a number between 1900 and ${new Date().getFullYear()}`);
+    if (endYear && (typeof endYear !== 'number' || endYear < 1900 || endYear > currentYear)) {
+        throw new Error(`endYear must be a number between 1900 and ${currentYear}`);
     }
 
     // Validate year range if both are provided
