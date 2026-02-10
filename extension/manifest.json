@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Google Scholar MCP",
-  "version": "1.0",
-  "description": "Search Google Scholar using a MCP server.",
+  "name": "Google Scholar Researcher",
+  "version": "1.1",
+  "description": "Search Google Scholar and save research papers directly in your browser.",
   "action": {
     "default_popup": "popup.html"
   },
@@ -10,7 +10,6 @@
     "storage"
   ],
   "host_permissions": [
-    "http://*/*",
-    "https://*/*"
+    "https://scholar.google.com/*"
   ]
 }
