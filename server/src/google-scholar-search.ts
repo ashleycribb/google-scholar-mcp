@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import * as cheerio from 'cheerio';
 import { LRUCache } from 'lru-cache';
 
@@ -21,22 +21,19 @@ interface SearchOptions {
     endYear?: number | null;
 }
 
-const cache = new LRUCache<string, ScholarResult[]>({
-    max: 100,
-    ttl: 1000 * 60 * 60, // 1 hour
-});
-
 /**
  * Searches Google Scholar for academic papers and returns parsed results
  * @param query - The search query string
  * @param numResults - Number of results to return (default: 10)
  * @param options - Additional search filters (author, startYear, endYear)
+ * @param axiosClient - Optional Axios instance for dependency injection
  * @returns Promise<ScholarResult[]> - Array of search results
  */
 export async function searchGoogleScholar(
     query: string, 
     numResults: number = 10,
-    options: SearchOptions = {}
+    options: SearchOptions = {},
+    axiosClient: AxiosInstance = axios.default
 ): Promise<ScholarResult[]> {
     try {
         const { author = null, startYear = null, endYear = null } = options;
@@ -74,7 +71,10 @@ export async function searchGoogleScholar(
             'Connection': 'keep-alive',
         };
 
-        const response = await axios.default.get(url, { headers });
+        const response = await axiosClient.get(url, {
+            headers,
+            timeout: 15000 // 15 seconds timeout
+        });
         const $ = cheerio.load(response.data);
         
         const results: ScholarResult[] = [];
