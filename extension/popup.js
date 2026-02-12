@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const NEWLINE_REGEX = /\n/g;
   const queryInput = document.getElementById('query');
   const searchButton = document.getElementById('search');
   const resultsDiv = document.getElementById('results');
@@ -60,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const resultContent = jsonResponse.result?.content?.[0]?.text;
 
       if (resultContent) {
-        resultsDiv.innerHTML = resultContent.replace(/\n/g, '<br>');
+        resultsDiv.innerHTML = resultContent.replace(NEWLINE_REGEX, '<br>');
       } else {
         resultsDiv.textContent = 'No results found or invalid response format.';
       }
