@@ -32,7 +32,6 @@ export class MCPServer {
     async handleGetRequest(req: Request, res: Response) {
         // if server does not offer an SSE stream at this endpoint.
         // res.status(405).set('Allow', 'POST').send('Method Not Allowed')
-        console.log("Received GET request");
 
         const sessionId = req.headers["mcp-session-id"] as string | undefined;
         if (!sessionId || !this.transports[sessionId]) {
