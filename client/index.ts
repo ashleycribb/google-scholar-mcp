@@ -14,6 +14,7 @@ export class MCPClient {
     private genAI: GoogleGenAI;
     private tools: FunctionDeclaration[] = [];
     private conversationHistory: any[] = []; // Store the entire conversation
+    private readonly MAX_HISTORY_LENGTH = 20;
 
     constructor(genAI?: GoogleGenAI, mcp?: Client) {
         if (genAI) {
@@ -88,6 +89,8 @@ export class MCPClient {
                 text: query,
             }],
         });
+
+        this.manageConversationHistory();
 
         const config = {
             tools: [{
@@ -184,6 +187,33 @@ export class MCPClient {
         finalText = [...toolCallResults, assistantResponse].join("\n");
         
         return finalText;
+    }
+
+    private manageConversationHistory() {
+        if (this.conversationHistory.length <= this.MAX_HISTORY_LENGTH) {
+            return;
+        }
+
+        // Calculate the starting index for the last MAX_HISTORY_LENGTH messages
+        const startIndex = this.conversationHistory.length - this.MAX_HISTORY_LENGTH;
+
+        // Try to find a user message with text content starting from startIndex
+        // We want to avoid starting with a model response or a tool response
+        let foundIndex = -1;
+        for (let i = startIndex; i < this.conversationHistory.length; i++) {
+            const msg = this.conversationHistory[i];
+            if (msg.role === 'user' && msg.parts && Array.isArray(msg.parts) && msg.parts.length > 0 && 'text' in msg.parts[0]) {
+                foundIndex = i;
+                break;
+            }
+        }
+
+        if (foundIndex !== -1) {
+            this.conversationHistory = this.conversationHistory.slice(foundIndex);
+        } else {
+            // Fallback: just slice the last MAX_HISTORY_LENGTH if no suitable start found
+            this.conversationHistory = this.conversationHistory.slice(-this.MAX_HISTORY_LENGTH);
+        }
     }
 
     async chatLoop() {
