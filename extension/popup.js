@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchButton = document.getElementById('search');
   const resultsDiv = document.getElementById('results');
   const serverUrlInput = document.getElementById('serverUrl');
+  const NEWLINE_REGEX = /\n/g;
 
   // Load the saved server URL from storage
   chrome.storage.local.get('mcpServerUrl', (data) => {
@@ -60,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const resultContent = jsonResponse.result?.content?.[0]?.text;
 
       if (resultContent) {
-        resultsDiv.innerHTML = resultContent.replace(/\n/g, '<br>');
+        resultsDiv.innerHTML = resultContent.replace(NEWLINE_REGEX, '<br>');
       } else {
         resultsDiv.textContent = 'No results found or invalid response format.';
       }
