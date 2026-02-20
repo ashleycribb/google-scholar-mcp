@@ -14,6 +14,7 @@ export class MCPClient {
     private genAI: GoogleGenAI;
     private tools: FunctionDeclaration[] = [];
     private conversationHistory: any[] = []; // Store the entire conversation
+    private readonly MAX_HISTORY_SIZE = 20;
 
     constructor(genAI?: GoogleGenAI, mcp?: Client) {
         if (genAI) {
@@ -80,7 +81,20 @@ export class MCPClient {
         };
     }
 
+    private enforceHistoryLimit() {
+        if (this.conversationHistory.length > this.MAX_HISTORY_SIZE) {
+            this.conversationHistory = this.conversationHistory.slice(-this.MAX_HISTORY_SIZE);
+
+            // Ensure we start with a user message to maintain API compatibility
+            while (this.conversationHistory.length > 0 && this.conversationHistory[0].role !== 'user') {
+                this.conversationHistory.shift();
+            }
+        }
+    }
+
     async processQuery(query: string) {
+        this.enforceHistoryLimit();
+
         // Add the new user message to conversation history
         this.conversationHistory.push({
             role: "user",
