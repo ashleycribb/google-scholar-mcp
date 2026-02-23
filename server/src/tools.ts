@@ -96,7 +96,7 @@ export async function callSearchGoogleScholarTool(args: any): Promise<{
             content: [
                 {
                     type: "text",
-                    text: JSON.stringify(response, null, 2)
+                    text: JSON.stringify(response)
                 }
             ]
         };
