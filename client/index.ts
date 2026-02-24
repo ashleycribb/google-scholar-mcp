@@ -14,6 +14,7 @@ export class MCPClient {
     private genAI: GoogleGenAI;
     private tools: FunctionDeclaration[] = [];
     private conversationHistory: any[] = []; // Store the entire conversation
+    private readonly MAX_HISTORY_LENGTH = 20;
 
     constructor(genAI?: GoogleGenAI, mcp?: Client) {
         if (genAI) {
@@ -88,6 +89,15 @@ export class MCPClient {
                 text: query,
             }],
         });
+
+        // Maintain sliding window of conversation history
+        if (this.conversationHistory.length > this.MAX_HISTORY_LENGTH) {
+            this.conversationHistory = this.conversationHistory.slice(-this.MAX_HISTORY_LENGTH);
+            // Ensure the conversation starts with a user message to satisfy API requirements
+            while (this.conversationHistory.length > 0 && this.conversationHistory[0].role !== 'user') {
+                this.conversationHistory.shift();
+            }
+        }
 
         const config = {
             tools: [{
