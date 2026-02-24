@@ -1,12 +1,17 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { LRUCache } from 'lru-cache';
+import { RateLimiter } from './rate-limiter.js';
 
 // Initialize LRU Cache
 const cache = new LRUCache<string, ScholarResult[]>({
     max: 100, // Maximum number of items
     ttl: 1000 * 60 * 60, // 1 hour TTL
 });
+
+// Initialize Rate Limiter
+// Enforce a 2-second delay between requests to avoid rate limiting
+const rateLimiter = new RateLimiter(2000);
 
 interface ScholarResult {
     Title: string;
@@ -20,11 +25,6 @@ interface SearchOptions {
     startYear?: number | null;
     endYear?: number | null;
 }
-
-const cache = new LRUCache<string, ScholarResult[]>({
-    max: 100,
-    ttl: 1000 * 60 * 60, // 1 hour
-});
 
 /**
  * Searches Google Scholar for academic papers and returns parsed results
@@ -74,7 +74,7 @@ export async function searchGoogleScholar(
             'Connection': 'keep-alive',
         };
 
-        const response = await axios.default.get(url, { headers });
+        const response = await rateLimiter.schedule(() => axios.default.get(url, { headers }));
         const $ = cheerio.load(response.data);
         
         const results: ScholarResult[] = [];
