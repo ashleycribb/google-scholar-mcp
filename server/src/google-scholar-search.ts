@@ -21,11 +21,6 @@ interface SearchOptions {
     endYear?: number | null;
 }
 
-const cache = new LRUCache<string, ScholarResult[]>({
-    max: 100,
-    ttl: 1000 * 60 * 60, // 1 hour
-});
-
 /**
  * Searches Google Scholar for academic papers and returns parsed results
  * @param query - The search query string
@@ -42,9 +37,11 @@ export async function searchGoogleScholar(
         const { author = null, startYear = null, endYear = null } = options;
 
         // Check cache
-        const cacheKey = `${query}|${numResults}|${author ?? ''}|${startYear ?? ''}|${endYear ?? ''}`;
-        if (cache.has(cacheKey)) {
-            return cache.get(cacheKey)!;
+        const cacheKey = `${query}|${author ?? ''}|${startYear ?? ''}|${endYear ?? ''}`;
+        const cachedResults = cache.get(cacheKey);
+
+        if (cachedResults && cachedResults.length >= numResults) {
+            return cachedResults.slice(0, numResults);
         }
         
         // Build the search query with additional parameters
