@@ -1,24 +1,21 @@
-import { GoogleGenAI, Type, Schema, FunctionDeclaration } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import readline from "readline/promises";
 import { fileURLToPath } from 'url';
-
 import dotenv from "dotenv";
-
 dotenv.config();
-
 export class MCPClient {
-    private mcp: Client;
-    private transport: StreamableHTTPClientTransport | null = null;
-    private genAI: GoogleGenAI;
-    private tools: FunctionDeclaration[] = [];
-    private conversationHistory: any[] = []; // Store the entire conversation
-
-    constructor(genAI?: GoogleGenAI, mcp?: Client) {
+    mcp;
+    transport = null;
+    genAI;
+    tools = [];
+    conversationHistory = []; // Store the entire conversation
+    constructor(genAI, mcp) {
         if (genAI) {
             this.genAI = genAI;
-        } else {
+        }
+        else {
             const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
             if (!GEMINI_API_KEY) {
                 throw new Error("GEMINI_API_KEY is not set");
@@ -27,11 +24,9 @@ export class MCPClient {
                 apiKey: GEMINI_API_KEY,
             });
         }
-
         this.mcp = mcp || new Client({ name: "mcp-client", version: "1.0.0" });
     }
-
-    async connectToServer(serverUrl: string) {
+    async connectToServer(serverUrl) {
         /**
          * Connect to an MCP server
          *
@@ -43,7 +38,6 @@ export class MCPClient {
             this.transport = new StreamableHTTPClientTransport(url);
             await this.mcp.connect(this.transport);
             this.setUpTransport();
-
             // List available tools
             const toolsResult = await this.mcp.listTools();
             this.tools = toolsResult.tools.map((tool) => {
@@ -53,94 +47,65 @@ export class MCPClient {
                     parameters: {
                         ...tool.inputSchema,
                         type: Type.OBJECT,
-                        properties: tool.inputSchema.properties as Record<string, Schema> | undefined
+                        properties: tool.inputSchema.properties
                     }
                 };
             });
-            console.log(
-                "Connected to server with tools:",
-                this.tools.map(({ name }) => name)
-            );
-        } catch (e) {
+            console.log("Connected to server with tools:", this.tools.map(({ name }) => name));
+        }
+        catch (e) {
             console.log("Failed to connect to MCP server: ", e);
             throw e;
         }
     }
-
-    private setUpTransport() {
+    setUpTransport() {
         if (this.transport === null) {
             return;
         }
         this.transport.onclose = async () => {
             console.log("SSE transport closed.");
         };
-
         this.transport.onerror = async (error) => {
             console.log("SSE transport error: ", error);
         };
     }
-
-    async processQuery(query: string) {
+    async processQuery(query) {
         // Add the new user message to conversation history
         this.conversationHistory.push({
             role: "user",
             parts: [{
-                text: query,
-            }],
+                    text: query,
+                }],
         });
-
-        // Ensure conversation history does not exceed 20 messages
-        if (this.conversationHistory.length > 20) {
-            this.conversationHistory = this.conversationHistory.slice(-20);
-
-            // Ensure the first message is a valid user text message
-            while (this.conversationHistory.length > 0) {
-                const firstMsg = this.conversationHistory[0];
-                // Check if it's a user role and has a text part (not a functionResponse part)
-                const hasTextPart = firstMsg.parts && firstMsg.parts.length > 0 && "text" in firstMsg.parts[0];
-                if (firstMsg.role === "user" && hasTextPart) {
-                    break;
-                }
-                this.conversationHistory.shift();
-            }
-        }
-
         const config = {
             tools: [{
-                functionDeclarations: this.tools
-            }]
+                    functionDeclarations: this.tools
+                }]
         };
-
         console.log("Processing query with conversation history and config");
-
         const response = await this.genAI.models.generateContent({
             model: "gemini-2.5-flash",
             contents: this.conversationHistory,
             config: config
         });
-
         let finalText = "";
-
         if (!response.functionCalls || response.functionCalls.length === 0) {
             // No function calls, just add the response to history
             finalText = response.text || "";
             this.conversationHistory.push({
                 role: "model",
                 parts: [{
-                    text: finalText,
-                }],
+                        text: finalText,
+                    }],
             });
             return finalText;
         }
-
         // Handle function calls
-        const toolCallResults: string[] = [];
-        
+        const toolCallResults = [];
         // Add the assistant's response with function calls to history
         if (response.candidates && response.candidates[0] && response.candidates[0].content) {
-            this.conversationHistory.push(response.candidates[0].content as any);
+            this.conversationHistory.push(response.candidates[0].content);
         }
-
         // Process each function call
         const validToolCalls = response.functionCalls.filter(toolCall => {
             if (!toolCall.name) {
@@ -149,69 +114,54 @@ export class MCPClient {
             }
             return true;
         });
-
         // Execute tool calls in parallel
         const toolPromises = validToolCalls.map(async (toolCall) => {
             console.log(`Calling function: ${toolCall.name}`);
             console.log('Parameters:', JSON.stringify(toolCall.args, null, 2));
-
             const toolResult = await this.mcp.callTool({
-                name: toolCall.name!,
+                name: toolCall.name,
                 arguments: toolCall.args,
             });
-
             return { toolCall, toolResult };
         });
-
         const results = await Promise.all(toolPromises);
-
         for (const { toolCall, toolResult } of results) {
             toolCallResults.push(`[Called tool ${toolCall.name} with args ${JSON.stringify(toolCall.args)}]`);
-
             const functionResponsePart = {
                 name: toolCall.name,
-                response: (toolResult.content as any[])[0]
+                response: toolResult.content[0]
             };
-
             // Add function response to conversation history
             this.conversationHistory.push({
                 role: "user",
-                parts: [{ functionResponse: functionResponsePart } as any],
+                parts: [{ functionResponse: functionResponsePart }],
             });
         }
-
         // Get final response after all function calls
         const nextResponse = await this.genAI.models.generateContent({
             model: "gemini-2.5-flash",
             contents: this.conversationHistory,
             config: config
         });
-
         const assistantResponse = nextResponse.text || "";
-        
         // Add the final assistant response to history
         this.conversationHistory.push({
             role: "model",
             parts: [{
-                text: assistantResponse,
-            }],
+                    text: assistantResponse,
+                }],
         });
-
         finalText = [...toolCallResults, assistantResponse].join("\n");
-        
         return finalText;
     }
-
     async chatLoop() {
         const rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
         });
-
         try {
             console.log("Type your queries or 'quit' to exit.");
             console.log("The conversation context will be maintained across messages.");
-
             while (true) {
                 const message = await rl.question("\nQuery: ");
                 if (message.toLowerCase() === "quit") {
@@ -220,43 +170,39 @@ export class MCPClient {
                 const response = await this.processQuery(message);
                 console.log("\n" + response);
             }
-        } finally {
+        }
+        finally {
             rl.close();
             this.showHistory();
         }
     }
-
     // Method to clear conversation history if needed
     clearHistory() {
         this.conversationHistory = [];
         console.log("Conversation history cleared.");
     }
-
     // Method to view conversation history (for debugging)
     showHistory() {
         console.log("Conversation History:");
         console.log(JSON.stringify(this.conversationHistory, null, 2));
     }
-
     async cleanup() {
         this.transport = null;
         await this.mcp.close();
     }
 }
-
 async function main() {
     const port = 3000;
     const mcpClient = new MCPClient();
-
     try {
         await mcpClient.connectToServer(`http://localhost:${port}/mcp`);
         await mcpClient.chatLoop();
-    } finally {
+    }
+    finally {
         await mcpClient.cleanup();
         process.exit(0);
     }
 }
-
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     main();
 }
