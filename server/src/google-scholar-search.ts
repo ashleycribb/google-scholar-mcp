@@ -2,12 +2,6 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { LRUCache } from 'lru-cache';
 
-// Initialize LRU Cache
-const cache = new LRUCache<string, ScholarResult[]>({
-    max: 100, // Maximum number of items
-    ttl: 1000 * 60 * 60, // 1 hour TTL
-});
-
 interface ScholarResult {
     Title: string;
     Authors: string;
@@ -15,16 +9,30 @@ interface ScholarResult {
     URL: string;
 }
 
+interface CacheEntry {
+    results: ScholarResult[];
+    maxRequested: number;
+}
+
+// Initialize LRU Cache
+const cache = new LRUCache<string, CacheEntry>({
+    max: 100, // Maximum number of items
+    ttl: 1000 * 60 * 60, // 1 hour TTL
+});
+
 interface SearchOptions {
     author?: string | null;
     startYear?: number | null;
     endYear?: number | null;
 }
 
-const cache = new LRUCache<string, ScholarResult[]>({
-    max: 100,
-    ttl: 1000 * 60 * 60, // 1 hour
-});
+const DEFAULT_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Encoding': 'gzip, deflate',
+    'Connection': 'keep-alive',
+};
 
 /**
  * Searches Google Scholar for academic papers and returns parsed results
@@ -41,10 +49,16 @@ export async function searchGoogleScholar(
     try {
         const { author = null, startYear = null, endYear = null } = options;
 
-        // Check cache
-        const cacheKey = `${query}|${numResults}|${author ?? ''}|${startYear ?? ''}|${endYear ?? ''}`;
+        // Check cache (excluding numResults to allow subset queries to hit)
+        const cacheKey = `${query}|${author ?? ''}|${startYear ?? ''}|${endYear ?? ''}`;
+
         if (cache.has(cacheKey)) {
-            return cache.get(cacheKey)!;
+            const entry = cache.get(cacheKey)!;
+            // If the cached entry has at least the number of results requested,
+            // or we know from a previous larger request that there are no more results
+            if (entry.results.length >= numResults || entry.maxRequested >= numResults) {
+                return entry.results.slice(0, numResults);
+            }
         }
         
         // Build the search query with additional parameters
@@ -64,17 +78,8 @@ export async function searchGoogleScholar(
             const yearEnd = endYear || '';
             url += `&as_ylo=${yearStart}&as_yhi=${yearEnd}`;
         }
-        
-        // Set headers to mimic a real browser request
-        const headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
-        };
 
-        const response = await axios.default.get(url, { headers });
+        const response = await axios.default.get(url, { headers: DEFAULT_HEADERS });
         const $ = cheerio.load(response.data);
         
         const results: ScholarResult[] = [];
@@ -112,7 +117,14 @@ export async function searchGoogleScholar(
         });
 
         // Cache the results
-        cache.set(cacheKey, results);
+        const existingEntry = cache.get(cacheKey);
+        // If we fetched new results, we only update the cache if it's better
+        if (!existingEntry || numResults > existingEntry.maxRequested) {
+             cache.set(cacheKey, {
+                 results: results,
+                 maxRequested: numResults
+             });
+        }
 
         return results;
         
@@ -121,9 +133,3 @@ export async function searchGoogleScholar(
         throw new Error(`Failed to search Google Scholar: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }
-
-// Example usage with different parameter combinations:
-// searchGoogleScholar('machine learning'); // Original usage
-// searchGoogleScholar('machine learning', 10, { author: 'Andrew Ng' });
-// searchGoogleScholar('machine learning', 10, { startYear: 2020, endYear: 2023 });
-// searchGoogleScholar('machine learning', 10, { author: 'Geoffrey Hinton', startYear: 2015, endYear: 2020 });
