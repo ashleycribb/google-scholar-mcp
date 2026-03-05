@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { LRUCache } from 'lru-cache';
+import { RateLimiter } from './rate-limiter.js';
 
 // Initialize LRU Cache
 const cache = new LRUCache<string, ScholarResult[]>({
@@ -21,10 +22,15 @@ interface SearchOptions {
     endYear?: number | null;
 }
 
-const cache = new LRUCache<string, ScholarResult[]>({
-    max: 100,
-    ttl: 1000 * 60 * 60, // 1 hour
-});
+const rateLimiter = new RateLimiter(2000);
+
+const DEFAULT_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Encoding': 'gzip, deflate',
+    'Connection': 'keep-alive',
+};
 
 /**
  * Searches Google Scholar for academic papers and returns parsed results
@@ -65,16 +71,12 @@ export async function searchGoogleScholar(
             url += `&as_ylo=${yearStart}&as_yhi=${yearEnd}`;
         }
         
-        // Set headers to mimic a real browser request
-        const headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
-        };
-
-        const response = await axios.default.get(url, { headers });
+        const response = await rateLimiter.schedule(() =>
+            axios.default.get(url, {
+                headers: DEFAULT_HEADERS,
+                timeout: 15000
+            })
+        );
         const $ = cheerio.load(response.data);
         
         const results: ScholarResult[] = [];
