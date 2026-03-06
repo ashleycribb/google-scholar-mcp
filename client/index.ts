@@ -14,6 +14,7 @@ export class MCPClient {
     private genAI: GoogleGenAI;
     private tools: FunctionDeclaration[] = [];
     private conversationHistory: any[] = []; // Store the entire conversation
+    private readonly MAX_HISTORY_LENGTH = 20;
 
     constructor(genAI?: GoogleGenAI, mcp?: Client) {
         if (genAI) {
@@ -80,6 +81,30 @@ export class MCPClient {
         };
     }
 
+    private trimHistory() {
+        if (this.conversationHistory.length > this.MAX_HISTORY_LENGTH) {
+            // Keep the last MAX_HISTORY_LENGTH items
+            this.conversationHistory = this.conversationHistory.slice(-this.MAX_HISTORY_LENGTH);
+
+            // Ensure the first message is a user message with text (not a function response)
+            // Gemini API requires the conversation to start with a user message
+            while (this.conversationHistory.length > 0) {
+                const firstMsg = this.conversationHistory[0];
+                const isUserTextMsg = firstMsg.role === "user" &&
+                                     firstMsg.parts &&
+                                     firstMsg.parts.length > 0 &&
+                                     firstMsg.parts[0].text;
+
+                if (isUserTextMsg) {
+                    break;
+                }
+
+                // If not a valid starting message, remove it and check the next one
+                this.conversationHistory.shift();
+            }
+        }
+    }
+
     async processQuery(query: string) {
         // Add the new user message to conversation history
         this.conversationHistory.push({
@@ -88,6 +113,9 @@ export class MCPClient {
                 text: query,
             }],
         });
+
+        // Ensure history doesn't grow unbounded
+        this.trimHistory();
 
         const config = {
             tools: [{
