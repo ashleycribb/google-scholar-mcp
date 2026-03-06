@@ -80,7 +80,30 @@ export class MCPClient {
         };
     }
 
+    private trimHistory() {
+        // Keep only the last 20 messages
+        if (this.conversationHistory.length > 20) {
+            this.conversationHistory = this.conversationHistory.slice(-20);
+        }
+
+        // Gemini API requires the first message to be from the user
+        // and it must contain text (not just function responses)
+        while (this.conversationHistory.length > 0) {
+            const firstMsg = this.conversationHistory[0];
+            const isUserText = firstMsg.role === "user" &&
+                               firstMsg.parts &&
+                               firstMsg.parts.length > 0 &&
+                               firstMsg.parts[0].text !== undefined;
+            if (isUserText) {
+                break;
+            }
+            this.conversationHistory.shift();
+        }
+    }
+
     async processQuery(query: string) {
+        this.trimHistory();
+
         // Add the new user message to conversation history
         this.conversationHistory.push({
             role: "user",
