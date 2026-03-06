@@ -2,12 +2,6 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { LRUCache } from 'lru-cache';
 
-// Initialize LRU Cache
-const cache = new LRUCache<string, ScholarResult[]>({
-    max: 100, // Maximum number of items
-    ttl: 1000 * 60 * 60, // 1 hour TTL
-});
-
 interface ScholarResult {
     Title: string;
     Authors: string;
@@ -21,9 +15,15 @@ interface SearchOptions {
     endYear?: number | null;
 }
 
-const cache = new LRUCache<string, ScholarResult[]>({
-    max: 100,
-    ttl: 1000 * 60 * 60, // 1 hour
+interface CacheEntry {
+    results: ScholarResult[];
+    maxRequested: number;
+}
+
+// Initialize LRU Cache
+const cache = new LRUCache<string, CacheEntry>({
+    max: 100, // Maximum number of items
+    ttl: 1000 * 60 * 60, // 1 hour TTL
 });
 
 /**
@@ -42,9 +42,15 @@ export async function searchGoogleScholar(
         const { author = null, startYear = null, endYear = null } = options;
 
         // Check cache
-        const cacheKey = `${query}|${numResults}|${author ?? ''}|${startYear ?? ''}|${endYear ?? ''}`;
+        const cacheKey = `${query}|${author ?? ''}|${startYear ?? ''}|${endYear ?? ''}`;
         if (cache.has(cacheKey)) {
-            return cache.get(cacheKey)!;
+            const entry = cache.get(cacheKey)!;
+            if (entry.maxRequested >= numResults || entry.results.length < entry.maxRequested) {
+                // Return cached results if we previously requested >= numResults,
+                // OR if a previous request fetched all possible results for this query.
+                // Slice only up to the requested amount.
+                return entry.results.slice(0, numResults);
+            }
         }
         
         // Build the search query with additional parameters
@@ -112,7 +118,12 @@ export async function searchGoogleScholar(
         });
 
         // Cache the results
-        cache.set(cacheKey, results);
+        // If we already have results in cache, but we just fetched more, we update the cache
+        // However, we need to handle edge cases if multiple requests happen.
+        const existingEntry = cache.get(cacheKey);
+        if (!existingEntry || numResults > existingEntry.maxRequested) {
+            cache.set(cacheKey, { results, maxRequested: numResults });
+        }
 
         return results;
         
