@@ -33,4 +33,5 @@ button:hover {
   margin-top: 10px;
   border-top: 1px solid #ccc;
   padding-top: 10px;
+  white-space: pre-wrap;
 }
