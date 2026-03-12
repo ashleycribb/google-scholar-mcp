@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const resultContent = jsonResponse.result?.content?.[0]?.text;
 
       if (resultContent) {
-        resultsDiv.innerHTML = resultContent.replace(/\n/g, '<br>');
+        resultsDiv.textContent = resultContent;
       } else {
         resultsDiv.textContent = 'No results found or invalid response format.';
       }
