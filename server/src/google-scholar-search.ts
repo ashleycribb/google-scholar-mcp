@@ -74,7 +74,10 @@ export async function searchGoogleScholar(
             'Connection': 'keep-alive',
         };
 
-        const response = await axios.default.get(url, { headers });
+        const response = await axios.default.get(url, {
+            headers,
+            timeout: 15000 // 15 seconds timeout
+        });
         const $ = cheerio.load(response.data);
         
         const results: ScholarResult[] = [];
